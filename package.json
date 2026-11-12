@@ -1,0 +1,10 @@
+{
+  "name": "sankeymatic",
+  "private": true,
+  "description": "SankeyMATIC with the In & Out front end (fork of nowthis/sankeymatic)",
+  "license": "ISC",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "start": "python3 -m http.server 8000 --bind 127.0.0.1 --directory build"
+  }
+}

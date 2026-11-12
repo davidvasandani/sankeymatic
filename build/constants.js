@@ -287,6 +287,57 @@ yellowgreen`.split(' ')),
   // making this a very /tall/ file with a difficult-to-follow structure.
   sampleDiagramRecipes
     = new Map([
+    // The diagram the In & Out view opens with. Its flows are exactly what
+    // InOutModel.toText(InOutModel.starterModel()) produces (a test checks
+    // that), so the page recognizes an untouched starter.
+    ['in_out_budget', {
+      name: 'Budget',
+      flows: "Wages [1500] Budget\nOther [250] Budget\n\nBudget [450] Taxes\nBudget [420] Housing\nBudget [400] Food\nBudget [255] Transportation\nBudget [160] Other Necessities\nBudget [*] Savings\n\n:Wages #2f6f4f\n:Other #6fa287\n:Taxes #b5532f\n:Housing #d98a4e\n:Food #c9a13c\n:Transportation #8f6a4b\n:Other Necessities #a4472f\n:Savings #2f6f4f\n:Budget #1d2b23",
+      settings: {
+        size_h: 460,
+        size_w: 600,
+        margin_l: 12,
+        margin_r: 12,
+        margin_t: 18,
+        margin_b: 20,
+        bg_color: '#f3efe4',
+        bg_transparent: 'n',
+        node_w: 14,
+        node_h: 50,
+        node_spacing: 75,
+        node_border: 0,
+        node_theme: 'none',
+        node_color: '#6f7a70',
+        node_opacity: 1,
+        flow_curvature: 0.5,
+        flow_inheritfrom: 'outside-in',
+        flow_opacity: 0.5,
+        layout_order: 'exact',
+        layout_justifyorigins: 'n',
+        layout_justifyends: 'n',
+        layout_reversegraph: 'n',
+        labels_color: '#1d2b23',
+        labels_hide: 'n',
+        labels_highlight: 0.45,
+        labels_fontface: 'sans-serif',
+        labels_magnify: 100,
+        labels_relativesize: 100,
+        labelname_appears: 'y',
+        labelname_size: 15,
+        labelname_weight: 400,
+        labelvalue_appears: 'y',
+        labelvalue_fullprecision: 'y',
+        labelvalue_position: 'below',
+        labelvalue_weight: 400,
+        labelposition_scheme: 'auto',
+        labelposition_autoalign: 0,
+        value_format: ',.',
+        value_prefix: '',
+        value_suffix: '',
+        meta_mentionsankeymatic: 'n',
+        },
+    }],
+
     // The initial diagram loaded on the page:
     ['default_budget', {
       name: 'Basic Budget',

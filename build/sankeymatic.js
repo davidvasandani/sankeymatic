@@ -356,14 +356,13 @@ function dataURLToBlob(dataURL) {
 // Keep at most one blobURL in memory:
 glob.previousBlobURL = null;
 
-// downloadADataURL: given an object & a filename, send it to the user:
-function downloadADataURL(dataURL, fileName) {
+// downloadABlob: given a Blob & a filename, send it to the user:
+function downloadABlob(blob, fileName) {
   if (glob.previousBlobURL) {
     URL.revokeObjectURL(glob.previousBlobURL);
   }
 
-  const blob = dataURLToBlob(dataURL),
-    newBlobURL = URL.createObjectURL(blob),
+  const newBlobURL = URL.createObjectURL(blob),
     newA = document.createElement('a');
   glob.previousBlobURL = newBlobURL;
   newA.style.display = 'none';
@@ -377,6 +376,11 @@ function downloadADataURL(dataURL, fileName) {
   setTimeout(() => URL.revokeObjectURL(newBlobURL), 30000);
 }
 
+// downloadADataURL: given a data: URL & a filename, send it to the user:
+function downloadADataURL(dataURL, fileName) {
+  downloadABlob(dataURLToBlob(dataURL), fileName);
+}
+
 glob.saveDiagramAsPNG = (scale) => {
   const [size, pngURL] = scaledPNG(scale);
   downloadADataURL(
@@ -386,11 +390,10 @@ glob.saveDiagramAsPNG = (scale) => {
 };
 
 // downloadATextFile: given a string & a filename, send it to the user:
+// (This used to hand a blob: URL to downloadADataURL, which can only read
+// data: URLs, so saving the diagram's text or SVG threw an error.)
 function downloadATextFile(txt, name) {
-  const textBlob = new Blob([txt], { type: 'text/plain' }),
-    tempURL = URL.createObjectURL(textBlob);
-  downloadADataURL(tempURL, name);
-  URL.revokeObjectURL(tempURL);
+  downloadABlob(new Blob([txt], { type: 'text/plain' }), name);
 }
 
 // saveDiagramAsSVG: take the current state of 'sankey_svg' and relay
@@ -661,6 +664,22 @@ const msg = {
     while (msg.queue.length) { msg.add(...msg.queue.shift()); }
   },
 };
+
+// MARK Hooks for alternative front ends
+
+/**
+ * Publish the outcome of a process_sankey() pass, so that another editor on
+ * the page (e.g. the In & Out view in app.js) can read what the engine parsed
+ * instead of parsing the input a second time.
+ * The node & flow objects are the engine's own; listeners must not alter them.
+ * @param {object} detail
+ */
+function publishRender(detail) {
+  glob.skmLastRender = detail;
+  if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+    document.dispatchEvent(new CustomEvent('skm:render', { detail: detail }));
+  }
+}
 
 // MARK Loading Sample Graphs
 
@@ -1939,6 +1958,9 @@ function generateLink() {
   return currentUrl;
 }
 
+// skmShareLink: the link to the current diagram, as a string.
+glob.skmShareLink = () => generateLink().toString();
+
 // MARK Save/Load diagram definitions in text files
 
 glob.saveDiagramToFile = () => {
@@ -2569,6 +2591,8 @@ ${escapeHTML(lineIn)}`
         // Looks like we found a color or opacity or both.
         // Update the target's name with the trimmed string:
         flow.target = possibleNodeName;
+        // Keep the suffix as typed (for publishRender):
+        thisFlow.inputSuffix = possibleColor;
         // If there was a color, adopt it:
         if (colorOpacity[1]) { thisFlow.color = `#${colorOpacity[1]}`; }
         // If there was an opacity, adopt it:
@@ -2771,6 +2795,14 @@ ${escapeHTML(ef.target.logName ?? ef.target.tipName)}${unknownMsg}`
       };
       // After establishing the above, the raw paint inputs aren't needed:
       delete n.paintInputs;
+      // Note which presentation details were given in the input, before
+      // rendering fills in defaults (for publishRender):
+      n.fromInput = {
+        color: typeof n.color !== 'undefined' && n.color !== '',
+        opacity: typeof n.opacity !== 'undefined' && n.opacity !== '',
+        label: typeof n.displayName !== 'undefined',
+        paint: paintL || paintR,
+      };
       n.index = approvedNodes.length;
 
       approvedNodes.push(n);
@@ -2841,13 +2873,22 @@ ${escapeHTML(ef.target.logName ?? ef.target.tipName)}${unknownMsg}`
   if (!goodFlows.length) {
     msg.add(
       'Enter a list of Flows &mdash; one per line. '
-      + 'See the <a href="/manual/" target="_blank">Manual</a> for more help.'
+      + 'See the <a href="https://sankeymatic.com/manual/" target="_blank" '
+      + 'rel="noopener">Manual</a> for more help.'
       );
 
     // Clear the contents of the graph in case there was an old graph left
     // over:
     initializeDiagram(approvedCfg);
     updateColorThemeDisplay();
+    publishRender({
+      hasFlows: false,
+      issues: invalidLines.length,
+      reversed: graphIsReversed,
+      nodes: [],
+      flows: [],
+      cfg: approvedCfg,
+    });
     return null;
   }
 
@@ -3027,6 +3068,15 @@ Total Outputs: <strong>${withUnits(grandTotal[OUT])}</strong>`;
 (${withUnits(maxNodeVal)}/${formattedPixelCount}px)`;
 
   updateResetNodesUI();
+
+  publishRender({
+    hasFlows: true,
+    issues: invalidLines.length,
+    reversed: graphIsReversed,
+    nodes: approvedNodes,
+    flows: approvedFlows,
+    cfg: approvedCfg,
+  });
 
   // All done. Give control back to the browser:
   return null;
