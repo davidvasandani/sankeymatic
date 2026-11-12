@@ -5,6 +5,11 @@ The diagram engine is upstream's. The page around it is new: sources on the
 left, destinations on the right, the diagram between them, and a meter that
 says whether the two sides balance.
 
+![The In & Out page with the budget example](docs/screenshots/01-desktop-starter.png)
+
+More in [`docs/screenshots/`](docs/screenshots/): the three balance states,
+the Options panel, Other shapes, the text view, and the page at phone width.
+
 ## What the fork changes
 
 - `build/index.html`, `build/app.css`, `build/app.js`: the In & Out page. It
