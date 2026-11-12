@@ -216,6 +216,11 @@ async function desktop(browser, site, problems) {
   await setRow(page, 'ins', 2, '.nm', 'A [1] B');
   check('a name with brackets is refused with a reason',
     (await page.textContent('#ins .entry:last-child .row-note')).includes('Square brackets'));
+  await setRow(page, 'ins', 2, '.nm', '-Budget-');
+  check('a name wrapped in hyphens is refused, so it cannot become the hub',
+    (await page.textContent('#ins .entry:last-child .row-note')).includes('hyphens')
+      && await page.evaluate(() => window.skmLastRender.flows.every((f) => f.source !== f.target)
+        && window.skmLastRender.nodes.length === 9));
   check('the engine reports no input problems for refused rows',
     await page.evaluate(() => window.skmLastRender.issues === 0
       && document.getElementById('issue_messages').childElementCount === 0));

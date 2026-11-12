@@ -111,6 +111,28 @@ test('validate: a destination ending in a colour-like tail is refused', () => {
   assert.deepEqual(v.outs.map((r) => r.problem), ['colortail', 'colortail']);
 });
 
+test('validate: a name wrapped in hyphens is refused everywhere', () => {
+  // The engine would strip the hyphens, turning '-Budget-' into the hub.
+  const v = M.validate(model([['-Wages-', '1'], ['Pay', '1']], [['-Budget-', '1'], ['--', '1'], ['-', '1'], ['well-being', '1']]));
+  assert.deepEqual(v.ins.map((r) => r.problem), ['hidden', null]);
+  assert.deepEqual(v.outs.map((r) => r.problem), ['hidden', 'hidden', null, null]);
+  assert.equal(M.validate(model([], [], { hub: '-x-' })).hubProblem, 'hidden');
+  assert.equal(M.validate(model([['a', '1']], [], { rest: '-x-' })).restProblem, 'hidden');
+  assert.doesNotMatch(M.toText(model([['Pay', '5']], [['-Budget-', '1']])), /-Budget-/);
+});
+
+test('validate: a row that would spell a "move" instruction is refused', () => {
+  const m = model([['move cash', '5'], ['Pay', '5']], [['Rent', '1']], { hub: 'Plan 1, 2' }),
+    v = M.validate(m);
+  assert.deepEqual(v.ins.map((r) => r.problem), ['moveline', null]);
+  assert.doesNotMatch(M.toText(m), /^move /m);
+  // The same words are fine when the line cannot be read that way:
+  assert.equal(M.validate(model([['move cash', '5']], [])).ins[0].problem, null);
+  const out = M.validate(model([['Pay', '5']], [['Zone 3, 4', '1']], { hub: 'move it' }));
+  assert.equal(out.outs[0].problem, 'moveline');
+  assert.equal(M.validate(model([['Pay', '5']], [], { hub: 'move it', rest: 'Tier 1, 2' })).restProblem, 'moveline');
+});
+
 test('validate falls back to a placeholder hub while the name is unusable', () => {
   assert.equal(M.validate(model([], [], { hub: '  ' })).hub, 'Hub');
   assert.equal(M.validate(model([], [], { hub: '  ' })).hubProblem, null);

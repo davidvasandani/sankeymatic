@@ -46,6 +46,8 @@ Loaded in the browser as window.InOutModel and in tests via require().
       brackets: 'Square brackets can’t be used in a name.',
       prefix: 'A name can’t start with //, an apostrophe or a colon.',
       colortail: 'A name can’t end in something that reads as a colour, like #123.',
+      hidden: 'A name wrapped in hyphens, like -this-, means “hide the label”, so it can’t be used here.',
+      moveline: 'With these names the line would be read as an instruction to move a node. Change one of them.',
       hub: 'This is the name of the hub, so it can’t also be a row.',
       otherside: 'This name is already used under “Coming in”.',
     };
@@ -76,9 +78,16 @@ Loaded in the browser as window.InOutModel and in tests via require().
     if (name === '') { return 'empty'; }
     if (/[[\]]/.test(name)) { return 'brackets'; }
     if (/^(?:\/\/|'|:)/.test(name)) { return 'prefix'; }
+    // The engine reads '-name-' as 'name' with its label hidden, which
+    // would also let a row quietly become the hub or another row:
+    if (/^-.*-$/.test(name)) { return 'hidden'; }
     if (isTarget && reColorTail.test(name)) { return 'colortail'; }
     return null;
   }
+
+  // The engine looks for 'move <node> <x>, <y>' lines before it looks for
+  // flows, so a flow whose names happen to spell one would not be drawn:
+  const reMoveLine = /^move .+ -?\d(?:.\d+)?, -?\d(?:.\d+)?$/;
 
   function trimmed(s) { return String(s ?? '').trim(); }
 
@@ -105,6 +114,11 @@ Loaded in the browser as window.InOutModel and in tests via require().
       if (!problem && isTarget && sourceNames.has(name)) {
         problem = 'otherside';
       }
+      if (!problem && !row.flow && reMoveLine.test(isTarget
+        ? `${hub} [${amount.text}] ${name}`
+        : `${name} [${amount.text}] ${hub}`)) {
+        problem = 'moveline';
+      }
       return { ok: !problem, name, amount, problem };
     }
 
@@ -120,6 +134,10 @@ Loaded in the browser as window.InOutModel and in tests via require().
     let restProblem = nameProblem(rest, true);
     if (!restProblem && rest === hub) { restProblem = 'hub'; }
     if (!restProblem && sourceNames.has(rest)) { restProblem = 'otherside'; }
+    if (!restProblem && !model.restFlow
+        && reMoveLine.test(`${hub} [*] ${rest}`)) {
+      restProblem = 'moveline';
+    }
 
     return { hub, hubProblem, rest, restProblem, ins, outs };
   }
