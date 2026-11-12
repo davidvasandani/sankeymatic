@@ -405,6 +405,19 @@ test('fromRender: a remainder in the middle of the destinations is not exact', (
   assert.equal(result.exact, false);
 });
 
+test('fromRender refuses a diagram with a name a row could not hold', () => {
+  // All of these are valid to the engine; as rows, the flow would vanish.
+  [
+    [['a', '10', 'h'], ['h', '10', ':c']],
+    [['a', '10', 'h'], ['h', '10', "'c"]],
+    [["'a", '10', 'h'], ['h', '10', 'c']],
+    [['a', '10', '//h'], ['//h', '10', 'c']],
+    [['a', '10', 'h'], ['h', '4', 'c'], ['h', '*', ':rest']],
+  ].forEach((flows) => {
+    assert.deepEqual(M.fromRender(renderDetail(flows)), { ok: false, reason: 'name' });
+  });
+});
+
 test('fromRender: two rows with one name stay two rows', () => {
   const d = renderDetail([['a', '5', 'h'], ['a', '2', 'h'], ['h', '7', 'c']]);
   const { model: m } = M.fromRender(d);

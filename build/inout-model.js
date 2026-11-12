@@ -228,7 +228,8 @@ Loaded in the browser as window.InOutModel and in tests via require().
    *  { hasFlows, issues, reversed, nodes, flows }
    * @returns {object} { ok: true, exact, model } or { ok: false, reason }.
    *  'exact' is false when writing the model back as text would change the
-   *  diagram (a leftover amount with no "[*]" flow, or the reverse).
+   *  diagram without losing anything: a leftover amount with no "[*]" flow
+   *  (or the reverse), or nodes introduced in another order.
    */
   function fromRender(detail) {
     const no = (reason) => ({ ok: false, reason });
@@ -330,18 +331,22 @@ Loaded in the browser as window.InOutModel and in tests via require().
       }
     }
 
-    // Would writing this model back out draw the same diagram?
+    // A name which a row would refuse (see validate) would drop its flow
+    // from the diagram the moment the rows were written back:
     const v = validate(model),
-      allDrawn = v.ins.concat(v.outs).every((r) => r.ok) && !v.hubProblem,
-      surplus = balance(model).state === 'surplus',
+      allDrawn = v.ins.concat(v.outs).every((r) => r.ok) && !v.hubProblem
+        && !(restFlow && v.restProblem);
+    if (!allDrawn) { return no('name'); }
+
+    // Would writing this model back out draw the same diagram?
+    const surplus = balance(model).state === 'surplus',
       // The engine orders nodes (and hands out theme colors) by where each
       // name first appears in the text. Rows are written sources first, then
       // destinations, then the remainder; a text which introduced its nodes
       // in another order would be rearranged by the first edit.
       sameOrder = nodes.map((n) => n.name).join('\n')
         === nodeOrder(model, Boolean(restFlow)).join('\n'),
-      exact = allDrawn && sameOrder && surplus === Boolean(restFlow)
-        && !(restFlow && v.restProblem);
+      exact = sameOrder && surplus === Boolean(restFlow);
     return { ok: true, exact, model };
   }
 

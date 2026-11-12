@@ -266,6 +266,10 @@ function fitChart() {
 const BACK_NOTES = {
   'no-flows': 'Write a flow to draw a diagram.',
   issues: 'Fix the problems listed above the diagram, then In & Out can open it.',
+  name: 'A name in this diagram can’t be used in a row (one that starts '
+    + 'with a colon or an apostrophe, for example), so it is edited here.',
+  amount: 'An amount in this diagram is written in a way rows can’t '
+    + 'hold, so it is edited here.',
   other: 'In & Out needs sources, one hub and destinations. This diagram has '
     + 'another shape, so it is edited here. To start over with In & Out, pick '
     + 'Budget under Other shapes.',
