@@ -439,6 +439,43 @@ async function desktop(browser, site, problems) {
       && document.getElementById('link_text').value === window.skmShareLink()));
   await noClip.close();
 
+  // --- Diagrams that are nearly, but not exactly, rows ---
+  // Each is written in the text view, shared, and opened from its link.
+  const viaLinkOf = async (diagram) => {
+    const editor = await open(context, site.url, origin, problems);
+    await editor.click('#btn_shapes');
+    await editor.click('#btn_text_mode');
+    await editor.fill('#flows_in', diagram);
+    await editor.dispatchEvent('#flows_in', 'change');
+    const made = { link: await editor.evaluate(() => window.skmShareLink()), picture: await svg(editor) };
+    await editor.close();
+    const opened = await open(context, made.link, origin, problems);
+    return { opened, picture: made.picture };
+  };
+
+  const plus = await viaLinkOf('a [+100] h\nh [+60.50] c\nh [*] rest');
+  check('an amount written with a leading + opens as rows with the same numbers',
+    await view(plus.opened) === 'inout' && await plus.opened.textContent('#t-in') === '100.00'
+      && await plus.opened.textContent('#t-out') === '60.50'
+      && await svg(plus.opened) === plus.picture);
+  await plus.opened.close();
+
+  const bareHub = await viaLinkOf('a [10] h\nh [10] c\n:a #f00\n:c #00f');
+  const hubColorOf = (p) => p.evaluate(() => window.skmLastRender.nodes.find((n) => n.name === 'h').color);
+  const hubWas = await hubColorOf(bareHub.opened);
+  await setRow(bareHub.opened, 'ins', 0, '.amt', '12');
+  check('a hub left to the theme keeps its colour after a row is edited',
+    await view(bareHub.opened) === 'inout' && await hubColorOf(bareHub.opened) === hubWas
+      && !(await text(bareHub.opened)).includes(':h '));
+  await bareHub.opened.close();
+
+  const declared = await viaLinkOf(':c #00f\na [10] h\nh [10] c');
+  check('nodes introduced in another order open as text, picture unchanged',
+    await view(declared.opened) === 'text' && await svg(declared.opened) === declared.picture
+      && !(await declared.opened.isDisabled('#btn_back_inout'))
+      && (await declared.opened.textContent('#back_note')).includes('rewrite the text'));
+  await declared.opened.close();
+
   // --- A link with nothing usable in it ---
   const broken = await open(context, `${site.url}?i=not-a-diagram`, origin, problems);
   check('an undecodable link says so and offers the text view',

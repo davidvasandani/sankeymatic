@@ -292,6 +292,8 @@ test('fromRender undoes "Reverse the graph"', () => {
     {},
     { reversed: true }
   );
+  // The engine still lists nodes in the order the text introduced them:
+  d.nodes = ['a', 'h', 'c', 's'].map((name) => d.nodes.find((n) => n.name === name));
   const { ok, exact, model: m } = M.fromRender(d);
   assert.equal(ok, true);
   assert.equal(exact, true);
@@ -341,6 +343,66 @@ test('fromRender: rows without their own colours mean the engine’s theme is in
   const { model: m } = M.fromRender(d);
   assert.equal(m.colors, 'theme');
   assert.deepEqual(m.ins.map((r) => r.color), ['#2f6f4f', null]);
+});
+
+test('fromRender: an uncoloured hub keeps the engine’s theme, even when every row is coloured', () => {
+  const d = renderDetail(
+    [['a', '10', 'h'], ['h', '10', 'c']],
+    { a: { color: '#f00' }, c: { color: '#00f' } }
+  );
+  const { ok, exact, model: m } = M.fromRender(d);
+  assert.equal(ok, true);
+  assert.equal(exact, true);
+  assert.equal(m.colors, 'theme');
+  // Writing it back must not give the hub a colour it never had:
+  assert.equal(M.toText(m), 'a [10] h\n\nh [10] c\n\n:a #f00\n:c #00f');
+});
+
+test('fromRender: an uncoloured remainder keeps the engine’s theme too', () => {
+  const d = renderDetail(
+    [['a', '10', 'h'], ['h', '4', 'c'], ['h', '*', 's']],
+    { a: { color: '#f00' }, c: { color: '#00f' }, h: { color: '#333' } }
+  );
+  const { model: m } = M.fromRender(d);
+  assert.equal(m.colors, 'theme');
+  assert.doesNotMatch(M.toText(m), /^:s /m);
+});
+
+test('fromRender: a leading + on an amount is the same number', () => {
+  const { ok, exact, model: m } = M.fromRender(renderDetail([['a', '+100', 'h'], ['h', '+100.50', 'c']]));
+  assert.equal(ok, true);
+  assert.equal(exact, true);
+  assert.deepEqual([m.ins[0].amount, m.outs[0].amount], ['100', '100.50']);
+  assert.equal(M.balance(m).totalIn, 100);
+});
+
+test('fromRender refuses an amount it would read as a different number', () => {
+  // The engine reads these with parseFloat-like leniency; rows would not.
+  ['1e3', '+-5', '0x10'].forEach((amount) => {
+    const result = M.fromRender(renderDetail([['a', amount, 'h'], ['h', '1', 'c']]));
+    assert.deepEqual(result, { ok: false, reason: 'amount' }, amount);
+  });
+});
+
+test('fromRender: nodes introduced in another order convert, but not exactly', () => {
+  // As if the text had declared ':c' before any flow, so that 'c' is first:
+  const d = renderDetail([['a', '5', 'h'], ['h', '5', 'c']]);
+  d.nodes = [d.nodes[2], d.nodes[0], d.nodes[1]];
+  const result = M.fromRender(d);
+  assert.equal(result.ok, true);
+  assert.equal(result.exact, false);
+});
+
+test('fromRender: destinations listed before sources are not exact', () => {
+  const result = M.fromRender(renderDetail([['h', '5', 'c'], ['a', '5', 'h']]));
+  assert.equal(result.ok, true);
+  assert.equal(result.exact, false);
+});
+
+test('fromRender: a remainder in the middle of the destinations is not exact', () => {
+  const result = M.fromRender(renderDetail([['a', '9', 'h'], ['h', '*', 's'], ['h', '4', 'c']]));
+  assert.equal(result.ok, true);
+  assert.equal(result.exact, false);
 });
 
 test('fromRender: two rows with one name stay two rows', () => {

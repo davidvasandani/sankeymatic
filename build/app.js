@@ -269,8 +269,9 @@ const BACK_NOTES = {
   other: 'In & Out needs sources, one hub and destinations. This diagram has '
     + 'another shape, so it is edited here. To start over with In & Out, pick '
     + 'Budget under Other shapes.',
-  inexact: 'Going back to In & Out will add or remove the “left over” '
-    + 'flow so the hub balances.',
+  inexact: 'In & Out can open this, but it will rewrite the text: nodes are '
+    + 'drawn in row order, and a “left over” flow is added or removed so the '
+    + 'hub balances.',
   exact: 'This diagram fits In & Out.',
 };
 

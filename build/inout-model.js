@@ -277,10 +277,19 @@ Loaded in the browser as window.InOutModel and in tests via require().
     if (outFlows.some((f) => f.operation === '?')) { return no('fill-missing'); }
     if (restFlows.length > 1) { return no('two-remainders'); }
 
+    // An amount must mean the same number to a row as it did to the engine.
+    // (The engine also takes a leading '+', which is dropped here.)
+    const amountOf = (f) => String(f.value).replace(/^\+/, ''),
+      readable = (f) => {
+        const parsed = parseAmount(amountOf(f));
+        return parsed !== null && parsed.value === Number(f.value);
+      };
+    if (flows.some((f) => !f.operation && !readable(f))) { return no('amount'); }
+
     const explicit = (n) => (n.fromInput && n.fromInput.color ? n.color : null),
       toRow = (f, end) => ({
         name: f[end].name,
-        amount: String(f.value),
+        amount: amountOf(f),
         color: explicit(f[end]),
         flow: f.suffix,
       }),
@@ -297,11 +306,15 @@ Loaded in the browser as window.InOutModel and in tests via require().
           .map((f) => toRow(f, 'target')),
       };
 
-    // Was this diagram using the In & Out palette? It was if every row has
-    // a color of its own. A row whose color is the palette's color for its
-    // position goes back to being automatic.
-    const rows = model.ins.concat(model.outs);
-    if (rows.length && rows.every((r) => r.color)) {
+    // Was this diagram using the In & Out palette? It was if every node has
+    // a color of its own: each row, the hub, and the remainder if there is
+    // one. (If any of them is left to the engine's theme, switching the
+    // palette on would recolor it.) A row whose color is the palette's
+    // color for its position goes back to being automatic.
+    const rows = model.ins.concat(model.outs),
+      everyNodeColored = rows.every((r) => r.color) && model.hubColor
+        && (!restFlow || model.restColor);
+    if (rows.length && everyNodeColored) {
       model.colors = 'rows';
       ['ins', 'outs'].forEach((side) => {
         const palette = side === 'ins' ? IN_COLORS : OUT_COLORS;
@@ -321,9 +334,36 @@ Loaded in the browser as window.InOutModel and in tests via require().
     const v = validate(model),
       allDrawn = v.ins.concat(v.outs).every((r) => r.ok) && !v.hubProblem,
       surplus = balance(model).state === 'surplus',
-      exact = allDrawn && surplus === Boolean(restFlow)
+      // The engine orders nodes (and hands out theme colors) by where each
+      // name first appears in the text. Rows are written sources first, then
+      // destinations, then the remainder; a text which introduced its nodes
+      // in another order would be rearranged by the first edit.
+      sameOrder = nodes.map((n) => n.name).join('\n')
+        === nodeOrder(model, Boolean(restFlow)).join('\n'),
+      exact = allDrawn && sameOrder && surplus === Boolean(restFlow)
         && !(restFlow && v.restProblem);
     return { ok: true, exact, model };
+  }
+
+  /**
+   * The order in which toText() introduces node names: the first source,
+   * the hub (it is the target of the first flow), the other sources, the
+   * destinations, and the remainder last.
+   * @param {object} model
+   * @param {boolean} withRest
+   * @returns {string[]}
+   */
+  function nodeOrder(model, withRest) {
+    const names = [];
+    function add(name) { if (!names.includes(name)) { names.push(name); } }
+    model.ins.forEach((r, i) => {
+      add(r.name);
+      if (i === 0) { add(model.hub); }
+    });
+    add(model.hub);
+    model.outs.forEach((r) => add(r.name));
+    if (withRest) { add(model.rest); }
+    return names;
   }
 
   /**
